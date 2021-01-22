@@ -1,5 +1,5 @@
 import * as esbuild from 'esbuild-wasm';
-import { unpkgAid } from './helpers/unpkgAid';
+import { fetchPkgPlugin, unpkgPathPlugin } from './helpers/';
 import ReactDOM from 'react-dom';
 import { ChangeEvent, useEffect, useRef, useState } from 'react';
 
@@ -11,28 +11,30 @@ const App = () => {
   const startWASM = async () => {
     WASM.current = await esbuild.startService({
       worker: true,
-      wasmURL: '/esbuild.wasm'
+      wasmURL: 'https://unpkg.com/esbuild-wasm@0.8.27/esbuild.wasm'
     });
   }
 
-  const handleUserInput = (e: ChangeEvent<HTMLInputElement>) => setUserCode(e.target.value);
+  const handleUserInput = (e: ChangeEvent<HTMLTextAreaElement>) => setUserCode(e.target.value);
 
   const handleTranspile = async () => {
     if (!WASM.current) return;
 
-    const result = await WASM.current.build({
+    const { outputFiles: [ transpiledCode ] } = await WASM.current.build({
       entryPoints: ['index.js'],
       bundle: true,
       write: false,
-      plugins: [unpkgAid()],
+      plugins: [
+        unpkgPathPlugin(),
+        fetchPkgPlugin(userCode)
+      ],
       define: {
         "process.env.NODE_ENV": "'production'",
         global: "window"
       }
     });
 
-    console.log(result)
-    setSpitCode(result.outputFiles[0].text);
+    setSpitCode(transpiledCode);
   }
 
   useEffect(() => {
@@ -42,7 +44,7 @@ const App = () => {
   return (
     <div>
       <textarea
-        onChange={ e => setUserCode(e.target.value) }
+        onChange={ handleUserInput }
         value={ userCode }
       />
       <br />
